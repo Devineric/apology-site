@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>后台 · 珂儿道歉网站</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Noto Sans SC', 'PingFang SC', sans-serif;
+            background: linear-gradient(135deg, #fff0f3 0%, #fce4ec 100%);
+            min-height: 100vh;
+            padding: 2rem 1rem;
+            color: #3d2a2a;
+        }
+        .container { max-width: 780px; margin: 0 auto; }
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        .header h1 {
+            font-size: 1.6rem;
+            color: #d6336c;
+            margin-bottom: 0.3rem;
+        }
+        .header p {
+            color: #888;
+            font-size: 0.9rem;
+        }
+        .card {
+            background: rgba(255,255,255,0.85);
+            backdrop-filter: blur(8px);
+            border-radius: 20px;
+            padding: 1.5rem;
+            margin-bottom: 1.2rem;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+        }
+        .card h2 {
+            font-size: 1.05rem;
+            color: #d6336c;
+            margin-bottom: 0.8rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .stats {
+            display: flex;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+        }
+        .stat-item {
+            flex: 1;
+            min-width: 100px;
+            text-align: center;
+            padding: 0.8rem;
+            background: rgba(214,51,108,0.06);
+            border-radius: 12px;
+        }
+        .stat-item .num {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #d6336c;
+        }
+        .stat-item .label {
+            font-size: 0.8rem;
+            color: #888;
+            margin-top: 0.2rem;
+        }
+        .stat-item .time {
+            font-size: 0.75rem;
+            color: #aaa;
+            margin-top: 0.3rem;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+        th, td {
+            padding: 0.7rem 0.5rem;
+            text-align: left;
+            border-bottom: 1px solid rgba(0,0,0,0.06);
+        }
+        th {
+            color: #d6336c;
+            font-weight: 600;
+            font-size: 0.8rem;
+        }
+        td.msg { max-width: 200px; white-space: pre-wrap; word-break: break-word; }
+        .badge {
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        .badge-milk { background: #fff3e0; color: #e65100; }
+        .badge-cake { background: #fce4ec; color: #ad1457; }
+        .badge-red { background: #ffebee; color: #c62828; }
+        .empty {
+            text-align: center;
+            color: #bbb;
+            padding: 2rem 0;
+            font-size: 0.9rem;
+        }
+        .refresh-btn {
+            position: fixed;
+            bottom: 1.5rem;
+            right: 1.5rem;
+            background: #d6336c;
+            color: #fff;
+            border: none;
+            border-radius: 50px;
+            padding: 0.7rem 1.2rem;
+            font-size: 0.9rem;
+            cursor: pointer;
+            box-shadow: 0 4px 16px rgba(214,51,108,0.3);
+            transition: 0.2s;
+            font-family: inherit;
+        }
+        .refresh-btn:hover { transform: scale(1.05); }
+        @media (max-width: 480px) {
+            .card { padding: 1rem; }
+            table { font-size: 0.8rem; }
+            th, td { padding: 0.5rem 0.3rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>💗 珂儿道歉网站 · 后台</h1>
+            <p id="lastRefresh">实时数据面板</p>
+        </div>
+
+        <div class="card">
+            <h2>📊 访问统计</h2>
+            <div class="stats" id="statsContainer">
+                <div class="stat-item"><div class="num" id="visitCount">-</div><div class="label">总访问次数</div></div>
+                <div class="stat-item"><div class="num" id="submitCount">-</div><div class="label">提交次数</div></div>
+                <div class="stat-item"><div class="num" id="lastVisitTime">-</div><div class="label">最后访问</div></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>🎁 珂儿的选择</h2>
+            <div id="submissionsContainer">
+                <div class="empty">暂无数据，等待珂儿访问中...</div>
+            </div>
+        </div>
+    </div>
+
+    <button class="refresh-btn" onclick="loadData()">🔄 刷新</button>
+
+    <script>
+        async function loadData() {
+            try {
+                const res = await fetch('/api/data');
+                const data = await res.json();
+                renderStats(data);
+                renderSubmissions(data);
+                document.getElementById('lastRefresh').textContent =
+                    '最后更新：' + new Date().toLocaleString('zh-CN');
+            } catch (e) {
+                document.querySelector('.empty').textContent = '⚠️ 加载失败，请重试';
+            }
+        }
+
+        function renderStats(data) {
+            document.getElementById('visitCount').textContent = data.visits.length;
+            document.getElementById('submitCount').textContent = data.submissions.length;
+            if (data.visits.length > 0) {
+                const last = new Date(data.visits[data.visits.length - 1].timestamp);
+                document.getElementById('lastVisitTime').textContent =
+                    last.toLocaleString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+            } else {
+                document.getElementById('lastVisitTime').textContent = '暂无';
+            }
+        }
+
+        function badgeClass(choice) {
+            if (choice === '奶茶') return 'badge-milk';
+            if (choice === '蛋糕') return 'badge-cake';
+            return 'badge-red';
+        }
+
+        function choiceIcon(choice) {
+            if (choice === '奶茶') return '🧋';
+            if (choice === '蛋糕') return '🍰';
+            return '🧧';
+        }
+
+        function renderSubmissions(data) {
+            const container = document.getElementById('submissionsContainer');
+            if (data.submissions.length === 0) {
+                container.innerHTML = '<div class="empty">暂无数据，等待珂儿访问中...</div>';
+                return;
+            }
+            let html = `<table><thead><tr><th>#</th><th>选择</th><th>留言</th><th>时间</th></tr></thead><tbody>`;
+            data.submissions.forEach((s, i) => {
+                const t = new Date(s.timestamp);
+                const timeStr = t.toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+                html += `<tr>
+                    <td>${i + 1}</td>
+                    <td><span class="badge ${badgeClass(s.choice)}">${choiceIcon(s.choice)} ${s.choice}</span></td>
+                    <td class="msg">${s.message || '—'}</td>
+                    <td style="white-space:nowrap;color:#999;font-size:0.8rem">${timeStr}</td>
+                </tr>`;
+            });
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+
+        loadData();
+        setInterval(loadData, 10000);
+    </script>
+</body>
+</html>
